@@ -4,7 +4,7 @@ import std/strformat
 
 # fish
 #   alias zcd '/local/song10/prj/nim/nsh/nsh xcd $argv 1>/tmp/zcd && . /tmp/zcd'
-# 
+#
 
 proc xcd(add = "", del = "", db = "", paths: seq[string]): int =
   var dbf = db
@@ -47,8 +47,35 @@ proc xcd(add = "", del = "", db = "", paths: seq[string]): int =
       else:
         stderr.writeLine &"key '{key}' is not defined!"
 
-proc ycd(paths: seq[string]): int =
-  discard
+proc ycd(del = false, paths: seq[string]): int =
+  let dir = paths[0]
+  if del:
+    try:
+      dir.removeDir
+    except OSError:
+      echo "OS error!"
+      result = 1
+    except:
+      echo "Unknown exception!"
+      raise
+    finally:
+      discard
+  else:
+    if not dir.dirExists:
+      try:
+        dir.createDir
+      except OSError:
+        echo "OS error!"
+        result = 1
+      except:
+        echo "Unknown exception!"
+        raise
+      finally:
+        discard
+    if result == 0:
+      echo &"cd '{dir}'"
+    else:
+      stderr.writeLine &"dir '{dir}' cannot be found/created."
 
 when isMainModule:
   import cligen
