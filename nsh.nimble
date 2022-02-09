@@ -12,3 +12,4 @@ bin           = @["nsh"]
 # Dependencies
 
 requires "nim >= 1.6.2"
+requires "cligen >= 1.5.19"
