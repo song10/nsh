@@ -1,11 +1,12 @@
 import std/json
 import std/os
 import std/strformat
+import std/strutils
+import std/osproc
 
 # fish
 #   alias zcd '/local/song10/prj/nim/nsh/nsh xcd $argv 1>/tmp/zcd && . /tmp/zcd'
 #
-
 proc xcd(add = "", del = "", db = "", paths: seq[string]): int =
   var dbf = db
   if dbf.len == 0:
@@ -77,6 +78,25 @@ proc ycd(del = false, paths: seq[string]): int =
     else:
       stderr.writeLine &"dir '{dir}' cannot be found/created."
 
+# fish
+#   alias vii '/local/song10/prj/nim/nsh/nsh vii $argv'
+#
+proc vii(paths: seq[string]): int =
+  let spec = paths[0]
+  let words = spec.split({':', ',', ' ', '(', ')'})
+  let file = words[0]
+  var line = "0"
+  if words.len > 1 and words[1].len > 0:
+    line = words[1]
+  elif paths.len > 1:
+    line = paths[1]
+    if not line[0].isDigit:
+      line = line[1..^1]
+  let cmd = &"vim {file} +{line}"
+  # stderr.writeLine $paths
+  # stderr.writeLine cmd
+  result = execCmd(cmd)
+
 when isMainModule:
   import cligen
-  dispatchMulti([xcd], [ycd])
+  dispatchMulti([xcd], [ycd], [vii])
