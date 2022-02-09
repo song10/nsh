@@ -1,3 +1,8 @@
 nimcache/
 nimblecache/
 htmldocs/
+**/*.yaml
+tmp/
+tests/*
+!tests/*.nim
+nsh
