@@ -13,3 +13,4 @@ bin           = @["nsh"]
 
 requires "nim >= 1.6.2"
 requires "cligen >= 1.5.19"
+requires "yaml"
