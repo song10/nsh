@@ -1,4 +1,5 @@
 import std/[os, sequtils, streams, strformat, strutils, tables]
+import std/[parsecfg]
 import yaml/serialization
 
 const
@@ -13,8 +14,9 @@ type
 
 var the = App()
 
+# sugars
 template get_app*(): App = the
-template is_empty*(x: string): bool = x == ""
+template is_empty*(x: string): bool = isEmptyOrWhitespace(x)
 template is_existed(x: string): bool = fileExists(x)
 
 proc qecho*(args: varargs[string, `$`]): void =
@@ -158,3 +160,17 @@ proc cut_path*(code: string, db: var Database, fn: string): bool =
     for k in key: db.del k
     result = db.len < origin_size
     break # once
+
+proc read_ini*(fn: string, cfg: var Config): bool =
+  while true: # once
+    var xfn: string
+    if fn.is_empty:
+      xfn = joinPath(getAppDir(), "bs3.ini")
+    else:
+      xfn = fn
+    if not xfn.is_existed:
+      vecho &"Config '{xfn}' not found!"
+      return false
+    cfg = loadConfig(xfn)
+    break # once
+  return true
