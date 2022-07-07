@@ -65,7 +65,7 @@ proc render_clean_command(cmds, args): bool =
   of "config": jobs &= this.test_tc.split(',').map((x) => "toolchain " & x)
   else: jobs &= args.split(',').map((x) => "toolchain " & x)
   for x in jobs:
-    cmds[].add &"./build_system_3.py -y clean {x}"
+    cmds[].add &"./build_system_3.py clean {x} -y"
   true
 
 proc render_build_command(cmds, args): bool =
