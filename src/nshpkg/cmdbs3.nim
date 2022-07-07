@@ -65,7 +65,7 @@ proc render_clean_command(cmds, args): bool =
   of "config": jobs &= this.test_tc.split(',').map((x) => "toolchain " & x)
   else: jobs &= args.split(',').map((x) => "toolchain " & x)
   for x in jobs:
-    cmds[].add &"./build_system_3.py clean {x}"
+    cmds[].add &"./build_system_3.py -y clean {x}"
   true
 
 proc render_build_command(cmds, args): bool =
@@ -154,9 +154,10 @@ proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
   while true: # once
     # read config
     let dbname = get_effect_name(database, "bs3.yaml")
-    if not read_yaml(dbname, this.db):
+    if dbname.is_empty or not read_yaml(dbname, this.db):
       result = ExitNG; break
-    if not read_ini(joinPath(parentDir(dbname), "bs3.ini"), this.cfg):
+    let iname = get_effect_name(database, "bs3.ini")
+    if iname.is_empty or not read_ini(iname, this.cfg):
       result = ExitNG; break
     init_this()
     if compiler in ["gcc", "clang", "both"]: this.compiler = compiler

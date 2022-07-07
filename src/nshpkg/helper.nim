@@ -27,10 +27,27 @@ proc vecho*(args: varargs[string, `$`]): void =
   if the.verbose:
     stderr.writeLine args.join(" ")
 
+proc found_config_file(name: string, at = ""): string =
+  var path = if at != "": joinPath(at, "x") else: getAppFilename()
+  while true:
+    let pa = parentDir(path)
+    if pa == "": break
+    let pat = joinPath(pa, name)
+    if fileExists(pat):
+      result = pat
+      break
+    path = pa
+
+  # if not found, try application path
+  if result == "" and at != "":
+    let pat = joinPath(getAppDir(), name)
+    if fileExists(pat):
+      result = pat
+
 proc get_effect_name*(name, default: string): string =
   if name.is_empty:
-    result = getAppDir().joinPath(default)
-  else:
+    result = found_config_file(default, getCurrentDir())
+  elif fileExists(name):
     result = name
 
 proc read_yaml*(fn: string, db: var Database): bool =
