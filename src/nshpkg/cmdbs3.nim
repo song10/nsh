@@ -114,8 +114,9 @@ proc get_latest_bs3_log(path: string): string =
   return logfile
 
 proc render_state_command(cmds, args): bool =
-  if args[0] == 'X': return true
-  let logfile = get_latest_bs3_log(args)
+  let dir = if args == "": getCurrentDir() else: args
+  if dir[0] == 'X': return true
+  let logfile = get_latest_bs3_log(dir)
   if logfile.is_empty: return true
   let (_, name) = splitPath(logfile)
   let tmpfile = joinPath("/tmp", name) & ".grp"
@@ -141,9 +142,20 @@ proc render_watch_command(cmds, args): bool =
   watch -cet -n60 'sh {script}'"""
   true
 
-proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
-    simulator = "gdb", compiler = "gcc", run = false, verbose = false,
-        quiet = false, database = "", paths: seq[string]): int =
+proc render_fail_command(cmds, args): bool =
+  let basedir = if args.is_empty: getCurrentDir() else: args
+  let dir = find_folder("log", absolutePath(basedir))
+  let logs = find_files("*.log", dir)
+  if logs.len == 0: return false
+
+  let log = logs[^1]
+  cmds[].add &"""
+  grep -B1 Fail {log} | grep Config"""
+  true
+
+proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
+    fail = "$-$", simulator = "gdb", compiler = "gcc", run = false,
+    verbose = false, quiet = false, database = "", paths: seq[string]): int =
   # global context stuff
   var the = get_app()
   the.quiet = quiet
@@ -175,11 +187,14 @@ proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
     if not test.is_empty: # --test
       if not render_test_command(cmds, test):
         result = ExitNG; break
-    if not state.is_empty: # --state
+    if state != "$-$": # --state
       if not render_state_command(cmds, state):
         result = ExitNG; break
-    if not watch.is_empty: # --watch
+    if watch != "$-$": # --watch
       if not render_watch_command(cmds, watch):
+        result = ExitNG; break
+    if fail != "$-$": # --fail
+      if not render_fail_command(cmds, fail):
         result = ExitNG; break
 
     # apply now
@@ -192,4 +207,4 @@ proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
 
 when isMainModule:
   import cligen
-  dispatch(bs3, short = Short)
+  dispatch(bs3)

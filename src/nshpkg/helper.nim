@@ -27,7 +27,22 @@ proc vecho*(args: varargs[string, `$`]): void =
   if the.verbose:
     stderr.writeLine args.join(" ")
 
-proc found_config_file(name: string, at = ""): string =
+proc find_folder*(name: string, path = ""): string =
+  var basedir = if path == "": getCurrentDir() else: path
+  while basedir != "":
+    let test = joinPath(basedir, name)
+    if dirExists(test): result = test; break
+    basedir = parentDir(basedir)
+
+proc find_files*(name: string, path = ""): seq[string] =
+  var basedir = if path == "": getCurrentDir() else: path
+  while basedir != "":
+    let pattern = joinPath(basedir, name)
+    result = toSeq(walkFiles(pattern))
+    if result.len > 0: break
+    basedir = parentDir(basedir)
+
+proc found_config_file*(name: string, at = ""): string =
   var path = if at != "": joinPath(at, "x") else: getAppFilename()
   while true:
     let pa = parentDir(path)
