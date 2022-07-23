@@ -1,7 +1,7 @@
 import std/[os, osproc, tempfiles]
 import std/[algorithm, sugar]
 import std/[strutils, strformat]
-import std/[sequtils]
+import std/[sequtils, sets]
 import std/[parsecfg]
 import helper
 
@@ -32,7 +32,7 @@ proc init_this() =
   this.default_lib = "mculib"
   this.default_tc = &"nds64le-elf-{this.default_lib}-v5d"
   this.default_tests = @["binutils", "v5_toolmisc_test", "supertest",
-      "plumhall", "gcc", "g++"]
+      "plumhall", "gcc", "g++", "csmith"]
   this.test_tc = this.default_tc
   this.build_flags = "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
   this.simulator = "gdb" # gdb, sid
@@ -92,6 +92,12 @@ proc render_test_command(cmds, args): bool =
       # xxxxxx bit map to each default test
       for i, x in args[0..min(high(args), high(this.default_tests))]:
         if x == 'x': jobs.add this.default_tests[i]
+    elif args[0] == ':':
+      # abcdefg key map to each default test
+      for x in args[1..^1].toOrderedSet:
+        let i = x.ord - 'a'.ord
+        if i < this.default_tests.len:
+          jobs.add this.default_tests[i]
     else:
       jobs.add args
   if jobs.len > 0:
