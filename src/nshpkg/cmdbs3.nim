@@ -179,7 +179,7 @@ proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
       result = ExitNG; break
     init_this()
     if compiler in ["gcc", "clang", "both"]: this.compiler = compiler
-    if simulator in ["gdb", "sid"]: this.simulator = simulator
+    if simulator in ["gdb", "sid", "qemu"]: this.simulator = simulator
     # config ready now
 
     var cmds: Cmds; new(cmds)
