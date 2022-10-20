@@ -59,21 +59,23 @@ proc renderCleanCommand(cmds, args): bool =
     cmds[].add &"./build_system_3.py clean {x} -y"
   true
 
-proc render_build_command(cmds, args): bool =
+proc renderBuildCommand(cmds, args): bool =
+  let tc = the.cfg.getSectionValue("Test","tc")
+  let flags = the.cfg.getSectionValue("Build","flags")
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
   of "default":
     jobs &= [&"nds32le-elf-{the.default_lib}-v5,nds64le-elf-{the.default_lib}-v5d"]
   of "config":
-    jobs &= [the.test_tc];
+    jobs &= [tc];
   else: jobs.add args
   the.test_tc = jobs.join ","
   for x in jobs:
-    cmds[].add &"./build_system_3.py build {x} {the.build_flags}"
+    cmds[].add &"./build_system_3.py build {x} {flags}"
   true
 
-proc render_test_command(cmds, args): bool =
+proc renderTestCommand(cmds, args): bool =
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args

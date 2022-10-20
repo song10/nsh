@@ -22,7 +22,16 @@ type
     simulator*, compiler*: string
 
 proc initApp(): App =
-  App(verbose: false, quiet: false, database: "bs3.ini")
+  let lib = "mculib"
+  App(verbose: false, quiet: false, database: "bs3.ini",
+    default_lib: lib,
+    default_tc: &"nds64le-elf-{lib}-v5d",
+    default_tests: @["binutils", "v5_toolmisc_test", "supertest", "plumhall",
+        "gcc", "g++", "csmith"],
+    build_flags: "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes",
+    simulator: "gdb", # gdb, sid
+    compiler: "gcc", # gcc, clang, both
+  )
 
 var the* = initApp()
 
