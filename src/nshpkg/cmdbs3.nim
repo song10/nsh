@@ -5,22 +5,12 @@ import std/[sequtils, sets]
 import std/[parsecfg]
 import helper
 
-type Cmds = ref seq[string]
+type
+  Cmds = ref seq[string]
+
 using
   cmds: Cmds
   args: string
-
-type This = object
-  db: Database
-  cfg: Config
-  default_lib: string
-  default_tc: string
-  default_tests: seq[string]
-  test_tc: string
-  build_flags: string
-  simulator, compiler: string
-
-var this = This()
 
 proc init_this() =
   # static bool inited = false
@@ -29,23 +19,23 @@ proc init_this() =
   inited = true
 
   # default values
-  this.default_lib = "mculib"
-  this.default_tc = &"nds64le-elf-{this.default_lib}-v5d"
-  this.default_tests = @["binutils", "v5_toolmisc_test", "supertest",
+  the.default_lib = "mculib"
+  the.default_tc = &"nds64le-elf-{the.default_lib}-v5d"
+  the.default_tests = @["binutils", "v5_toolmisc_test", "supertest",
       "plumhall", "gcc", "g++", "csmith"]
-  this.test_tc = this.default_tc
-  this.build_flags = "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
-  this.simulator = "gdb" # gdb, sid
-  this.compiler = "gcc" # gcc, clang, both
+  the.test_tc = the.default_tc
+  the.build_flags = "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
+  the.simulator = "gdb" # gdb, sid
+  the.compiler = "gcc" # gcc, clang, both
 
   # pull cfg
   let
-    xdefault_lib = this.cfg.getSectionValue("Default", "lib")
-    xtest_tc = this.cfg.getSectionValue("Test", "tc")
-    xbuild_flags = this.cfg.getSectionValue("Build", "flags")
-  if xdefault_lib != "": this.default_lib = xdefault_lib
-  if xtest_tc != "": this.test_tc = xtest_tc
-  if xbuild_flags != "": this.build_flags = xbuild_flags
+    xdefault_lib = the.cfg.getSectionValue("Default", "lib")
+    xtest_tc = the.cfg.getSectionValue("Test", "tc")
+    xbuild_flags = the.cfg.getSectionValue("Build", "flags")
+  if xdefault_lib != "": the.default_lib = xdefault_lib
+  if xtest_tc != "": the.test_tc = xtest_tc
+  if xbuild_flags != "": the.build_flags = xbuild_flags
 
 # unit test stuff
 when not defined(release):
@@ -57,12 +47,13 @@ when not defined(release):
   proc ut_set_is_testing*(v: bool) = ut.is_testing = v
   proc ut_get_last_output*(): string = ut.last_output
 
-proc render_clean_command(cmds, args): bool =
+proc renderCleanCommand(cmds, args): bool =
+  let tc = the.cfg.getSectionValue("Test","tc")
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
   of "all": jobs &= ["toolchain all", "test"]
-  of "config": jobs &= this.test_tc.split(',').map((x) => "toolchain " & x)
+  of "config": jobs &= tc.split(',').map((x) => "toolchain " & x)
   else: jobs &= args.split(',').map((x) => "toolchain " & x)
   for x in jobs:
     cmds[].add &"./build_system_3.py clean {x} -y"
@@ -73,36 +64,36 @@ proc render_build_command(cmds, args): bool =
   var jobs: seq[string]
   case args
   of "default":
-    jobs &= [&"nds32le-elf-{this.default_lib}-v5,nds64le-elf-{this.default_lib}-v5d"]
+    jobs &= [&"nds32le-elf-{the.default_lib}-v5,nds64le-elf-{the.default_lib}-v5d"]
   of "config":
-    jobs &= [this.test_tc];
+    jobs &= [the.test_tc];
   else: jobs.add args
-  this.test_tc = jobs.join ","
+  the.test_tc = jobs.join ","
   for x in jobs:
-    cmds[].add &"./build_system_3.py build {x} {this.build_flags}"
+    cmds[].add &"./build_system_3.py build {x} {the.build_flags}"
   true
 
 proc render_test_command(cmds, args): bool =
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
-  of "all": jobs &= this.default_tests
+  of "all": jobs &= the.default_tests
   else:
     if args[0] in "-x":
       # xxxxxx bit map to each default test
-      for i, x in args[0..min(high(args), high(this.default_tests))]:
-        if x == 'x': jobs.add this.default_tests[i]
+      for i, x in args[0..min(high(args), high(the.default_tests))]:
+        if x == 'x': jobs.add the.default_tests[i]
     elif args[0] == ':':
       # abcdefg key map to each default test
       for x in args[1..^1].toOrderedSet:
         let i = x.ord - 'a'.ord
-        if i < this.default_tests.len:
-          jobs.add this.default_tests[i]
+        if i < the.default_tests.len:
+          jobs.add the.default_tests[i]
     else:
       jobs.add args
   if jobs.len > 0:
     let tests = jobs.join ","
-    cmds[].add &"./build_system_3.py test {tests} {this.test_tc} --with-sim={this.simulator} --test-with-compiler={this.compiler}"
+    cmds[].add &"./build_system_3.py test {tests} {the.test_tc} --with-sim={the.simulator} --test-with-compiler={the.compiler}"
   true
 
 proc get_latest_bs3_log(path: string): string =
@@ -162,28 +153,21 @@ proc render_fail_command(cmds, args): bool =
 proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
     fail = "$-$", simulator = "gdb", compiler = "gcc", run = false,
     verbose = false, quiet = false, database = "", paths: seq[string]): int =
-  # global context stuff
-  var the = get_app()
+
+  # update app (context)
   the.quiet = quiet
   the.verbose = verbose
+  if database.len > 0: the.database = database
+  if compiler in ["gcc", "clang", "both"]: the.compiler = compiler
+  if simulator in ["gdb", "sid", "qemu"]: the.simulator = simulator
+  if the.readDatabase():
+    result = ExitOK
+  else:
+    result = ExitNG
 
   # body
-  result = ExitOK
-  while true: # once
-    # read config
-    let dbname = get_effect_name(database, "bs3.yaml")
-    if dbname.is_empty or not read_yaml(dbname, this.db):
-      result = ExitNG; break
-    let iname = get_effect_name(database, "bs3.ini")
-    if iname.is_empty or not read_ini(iname, this.cfg):
-      result = ExitNG; break
-    init_this()
-    if compiler in ["gcc", "clang", "both"]: this.compiler = compiler
-    if simulator in ["gdb", "sid", "qemu"]: this.simulator = simulator
-    # config ready now
-
+  while result == ExitOK: # once
     var cmds: Cmds; new(cmds)
-
     if not clean.is_empty: # --clean
       if not render_clean_command(cmds, clean):
         result = ExitNG; break

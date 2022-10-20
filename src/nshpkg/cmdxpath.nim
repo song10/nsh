@@ -41,7 +41,6 @@ proc xpath*(add = "", cut = "", mask = "", list = false, reset = false,
   remove = false, verbose = false, quiet = false, format = "fish",
       database = "", paths: seq[string]): int =
   # global context stuff
-  var the = get_app()
   the.quiet = quiet
   the.verbose = verbose
   # body

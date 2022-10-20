@@ -8,14 +8,42 @@ const
 
 type
   Database* = OrderedTable[string, string]
-  App* = ref object
+  App* = object
     verbose*: bool
     quiet*: bool
+    db*: Database
+    cfg*: Config
+    database*: string
+    default_lib*: string
+    default_tc*: string
+    default_tests*: seq[string]
+    test_tc*: string
+    build_flags*: string
+    simulator*, compiler*: string
 
-var the = App()
+proc initApp(): App =
+  App(verbose: false, quiet: false, database: "bs3.ini")
+
+var the* = initApp()
+
+proc readIni*(fn: string, cfg: var Config): bool =
+  result = false
+  if fn.fileExists:
+    cfg = loadConfig(fn)
+    result = true
+
+proc readDatabase*(app: var App): bool =
+  result = false
+  var dbdir = getCurrentDir()
+  var dbpath = joinPath(dbdir, app.database)
+  while true:
+    if readIni(dbpath, app.cfg):
+      result = true
+      break
+    dbdir = parentDir(dbdir)
+    dbpath = joinPath(dbdir, app.database)
 
 # sugars
-template get_app*(): App = the
 template is_empty*(x: string): bool = isEmptyOrWhitespace(x)
 template is_existed(x: string): bool = fileExists(x)
 
@@ -193,16 +221,3 @@ proc cut_path*(code: string, db: var Database, fn: string): bool =
     result = db.len < origin_size
     break # once
 
-proc read_ini*(fn: string, cfg: var Config): bool =
-  while true: # once
-    var xfn: string
-    if fn.is_empty:
-      xfn = joinPath(getAppDir(), "bs3.ini")
-    else:
-      xfn = fn
-    if not xfn.is_existed:
-      vecho &"Config '{xfn}' not found!"
-      return false
-    cfg = loadConfig(xfn)
-    break # once
-  return true

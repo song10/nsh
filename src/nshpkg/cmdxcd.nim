@@ -21,7 +21,6 @@ proc apply_key(paths: seq[string], db: Database): bool =
 proc xcd*(add = "", cut = "", list = false, quiet = false, verbose = false,
     database = "", paths: seq[string]): int =
   # global context stuff
-  var the = get_app()
   the.quiet = quiet
   the.verbose = verbose
   # body
