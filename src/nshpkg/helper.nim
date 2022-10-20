@@ -14,8 +14,11 @@ type
     db*: Database
     cfg*: Config
     database*: string
+    #
+    release*: string
+    flags*: string
+    tc*: string
     default_lib*: string
-    default_tc*: string
     default_tests*: seq[string]
     test_tc*: string
     build_flags*: string
@@ -25,7 +28,7 @@ proc initApp(): App =
   let lib = "mculib"
   App(verbose: false, quiet: false, database: "bs3.ini",
     default_lib: lib,
-    default_tc: &"nds64le-elf-{lib}-v5d",
+    tc: &"nds64le-elf-{lib}-v5d",
     default_tests: @["binutils", "v5_toolmisc_test", "supertest", "plumhall",
         "gcc", "g++", "csmith"],
     build_flags: "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes",

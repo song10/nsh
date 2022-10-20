@@ -20,10 +20,9 @@ proc init_this() =
 
   # default values
   the.default_lib = "mculib"
-  the.default_tc = &"nds64le-elf-{the.default_lib}-v5d"
+  the.tc = &"nds64le-elf-{the.default_lib}-v5d"
   the.default_tests = @["binutils", "v5_toolmisc_test", "supertest",
       "plumhall", "gcc", "g++", "csmith"]
-  the.test_tc = the.default_tc
   the.build_flags = "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
   the.simulator = "gdb" # gdb, sid
   the.compiler = "gcc" # gcc, clang, both
@@ -48,31 +47,28 @@ when not defined(release):
   proc ut_get_last_output*(): string = ut.last_output
 
 proc renderCleanCommand(cmds, args): bool =
-  let tc = the.cfg.getSectionValue("Test","tc")
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
   of "all": jobs &= ["toolchain all", "test"]
-  of "config": jobs &= tc.split(',').map((x) => "toolchain " & x)
+  of "config": jobs &= the.tc.split(',').map((x) => "toolchain " & x)
   else: jobs &= args.split(',').map((x) => "toolchain " & x)
   for x in jobs:
     cmds[].add &"./build_system_3.py clean {x} -y"
   true
 
 proc renderBuildCommand(cmds, args): bool =
-  let tc = the.cfg.getSectionValue("Test","tc")
-  let flags = the.cfg.getSectionValue("Build","flags")
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
   of "default":
     jobs &= [&"nds32le-elf-{the.default_lib}-v5,nds64le-elf-{the.default_lib}-v5d"]
   of "config":
-    jobs &= [tc];
+    jobs &= [the.tc];
   else: jobs.add args
   the.test_tc = jobs.join ","
   for x in jobs:
-    cmds[].add &"./build_system_3.py build {x} {flags}"
+    cmds[].add &"./build_system_3.py build {x} {the.flags} {the.release}"
   true
 
 proc renderTestCommand(cmds, args): bool =
@@ -95,7 +91,7 @@ proc renderTestCommand(cmds, args): bool =
       jobs.add args
   if jobs.len > 0:
     let tests = jobs.join ","
-    cmds[].add &"./build_system_3.py test {tests} {the.test_tc} --with-sim={the.simulator} --test-with-compiler={the.compiler}"
+    cmds[].add &"./build_system_3.py test {tests} {the.tc} --with-sim={the.simulator} --test-with-compiler={the.compiler} {the.release}"
   true
 
 proc get_latest_bs3_log(path: string): string =
@@ -166,6 +162,11 @@ proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
     result = ExitOK
   else:
     result = ExitNG
+  the.tc = the.cfg.getSectionValue("Test", "tc")
+  the.flags = the.cfg.getSectionValue("Build", "flags")
+  the.release = the.cfg.getSectionValue("Release", "branch")
+  if the.release.len > 0:
+    the.release = &"--release-branch={the.release}"
 
   # body
   while result == ExitOK: # once
