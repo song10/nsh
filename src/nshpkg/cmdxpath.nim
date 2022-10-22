@@ -1,6 +1,6 @@
 import std/[os, sequtils, strformat, strutils, tables]
 import yaml/serialization
-import helper
+import global
 
 # unit test stuff
 when not defined(release):

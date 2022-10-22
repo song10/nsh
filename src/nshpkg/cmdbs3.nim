@@ -3,7 +3,7 @@ import std/[algorithm, sugar]
 import std/[strutils, strformat]
 import std/[sequtils, sets]
 import std/[parsecfg]
-import helper
+import global
 
 type
   Cmds = ref seq[string]
@@ -12,46 +12,14 @@ using
   cmds: Cmds
   args: string
 
-proc init_this() =
-  # static bool inited = false
-  var inited {.global.} = false
-  if inited: return
-  inited = true
-
-  # default values
-  the.default_lib = "mculib"
-  the.tc = &"nds64le-elf-{the.default_lib}-v5d"
-  the.default_tests = @["binutils", "v5_toolmisc_test", "supertest",
-      "plumhall", "gcc", "g++", "csmith"]
-  the.build_flags = "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
-  the.simulator = "gdb" # gdb, sid
-  the.compiler = "gcc" # gcc, clang, both
-
-  # pull cfg
-  let
-    xdefault_lib = the.cfg.getSectionValue("Default", "lib")
-    xtest_tc = the.cfg.getSectionValue("Test", "tc")
-    xbuild_flags = the.cfg.getSectionValue("Build", "flags")
-  if xdefault_lib != "": the.default_lib = xdefault_lib
-  if xtest_tc != "": the.test_tc = xtest_tc
-  if xbuild_flags != "": the.build_flags = xbuild_flags
-
-# unit test stuff
-when not defined(release):
-  type
-    Ut = ref object
-      is_testing: bool
-      last_output: string
-  var ut = Ut()
-  proc ut_set_is_testing*(v: bool) = ut.is_testing = v
-  proc ut_get_last_output*(): string = ut.last_output
-
 proc renderCleanCommand(cmds, args): bool =
   if args[0] == 'X': return true
   var jobs: seq[string]
   case args
   of "all": jobs &= ["toolchain all", "test"]
-  of "config": jobs &= the.tc.split(',').map((x) => "toolchain " & x)
+  of "config":
+    let tc = the.cfg.getSectionValue("Default", "tc")
+    jobs &= tc.split(',').map((x) => "toolchain " & x)
   else: jobs &= args.split(',').map((x) => "toolchain " & x)
   for x in jobs:
     cmds[].add &"./build_system_3.py clean {x} -y"
@@ -62,36 +30,58 @@ proc renderBuildCommand(cmds, args): bool =
   var jobs: seq[string]
   case args
   of "default":
-    jobs &= [&"nds32le-elf-{the.default_lib}-v5,nds64le-elf-{the.default_lib}-v5d"]
+    let lib = the.cfg.getSectionValue("Default", "lib")
+    jobs &= [&"nds32le-elf-{lib}-v5,nds64le-elf-{lib}-v5d"]
   of "config":
-    jobs &= [the.tc];
+    let tc = the.cfg.getSectionValue("Default", "tc")
+    jobs &= [tc];
   else: jobs.add args
-  the.test_tc = jobs.join ","
+
+  the.cfg.setSectionKey("Build", "tc", jobs.join ",")
+  let flags = the.cfg.getSectionValue("Build", "flags")
+  var branch = the.cfg.getSectionValue("Release", "branch")
+  if branch != "":
+    branch = &"--release-branch={branch}"
   for x in jobs:
-    cmds[].add &"./build_system_3.py build {x} {the.flags} {the.release}"
+    cmds[].add &"./build_system_3.py build {x} {flags} {branch}"
   true
 
 proc renderTestCommand(cmds, args): bool =
   if args[0] == 'X': return true
   var jobs: seq[string]
+  let d4Tests = the.cfg.getSectionValue("Test", "tests")
+  let tests = d4Tests.split(',')
   case args
-  of "all": jobs &= the.default_tests
+  of "all":
+    jobs &= d4Tests
   else:
     if args[0] in "-x":
       # xxxxxx bit map to each default test
-      for i, x in args[0..min(high(args), high(the.default_tests))]:
-        if x == 'x': jobs.add the.default_tests[i]
+      for i, x in args[0..min(high(args), high(tests))]:
+        if x == 'x': jobs.add tests[i]
     elif args[0] == ':':
       # abcdefg key map to each default test
       for x in args[1..^1].toOrderedSet:
         let i = x.ord - 'a'.ord
-        if i < the.default_tests.len:
-          jobs.add the.default_tests[i]
+        if i < tests.len:
+          jobs.add tests[i]
     else:
       jobs.add args
   if jobs.len > 0:
     let tests = jobs.join ","
-    cmds[].add &"./build_system_3.py test {tests} {the.tc} --with-sim={the.simulator} --test-with-compiler={the.compiler} {the.release}"
+    let simulator = the.cfg.getSectionValue("Test", "simulator")
+    let compiler = the.cfg.getSectionValue("Test", "compiler")
+    let branch = the.cfg.getSectionValue("Test", "branch")
+    var cflags = the.cfg.getSectionValue("Test", "cflags")
+    var ldflags = the.cfg.getSectionValue("Test", "ldflags")
+    var tc = the.cfg.getSectionValue("Build", "tc")
+    if cflags != "":
+      cflags = &"--with-extra-cflags='{cflags}'"
+    if ldflags != "":
+      ldflags = &"--with-extra-ldflags='{ldflags}'"
+    if tc == "":
+      tc = the.cfg.getSectionValue("Default", "tc")
+    cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch}"
   true
 
 proc get_latest_bs3_log(path: string): string =
@@ -148,25 +138,18 @@ proc render_fail_command(cmds, args): bool =
   grep -B1 Fail {log} | grep Config"""
   true
 
-proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
-    fail = "$-$", simulator = "gdb", compiler = "gcc", run = false,
-    verbose = false, quiet = false, database = "", paths: seq[string]): int =
+proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
+    fail = "", simulator = "sid", compiler = "gcc", run = false,
+    verbose = false, quiet = false, cfg = "bs3.ini", paths: seq[string]): int =
 
   # update app (context)
   the.quiet = quiet
   the.verbose = verbose
-  if database.len > 0: the.database = database
-  if compiler in ["gcc", "clang", "both"]: the.compiler = compiler
-  if simulator in ["gdb", "sid", "qemu"]: the.simulator = simulator
-  if the.readDatabase():
-    result = ExitOK
-  else:
-    result = ExitNG
-  the.tc = the.cfg.getSectionValue("Test", "tc")
-  the.flags = the.cfg.getSectionValue("Build", "flags")
-  the.release = the.cfg.getSectionValue("Release", "branch")
-  if the.release.len > 0:
-    the.release = &"--release-branch={the.release}"
+  the.readCfg(cfg)
+  if compiler in ["gcc", "clang", "both"]:
+    the.cfg.setSectionKey("Test", "compiler", compiler)
+  if simulator in ["gdb", "sid", "qemu"]:
+    the.cfg.setSectionKey("Test", "simulator", simulator)
 
   # body
   while result == ExitOK: # once
@@ -180,13 +163,13 @@ proc bs3*(clean = "", build = "", test = "", state = "$-$", watch = "$-$",
     if not test.is_empty: # --test
       if not render_test_command(cmds, test):
         result = ExitNG; break
-    if state != "$-$": # --state
+    if state != "": # --state
       if not render_state_command(cmds, state):
         result = ExitNG; break
-    if watch != "$-$": # --watch
+    if watch != "": # --watch
       if not render_watch_command(cmds, watch):
         result = ExitNG; break
-    if fail != "$-$": # --fail
+    if fail != "": # --fail
       if not render_fail_command(cmds, fail):
         result = ExitNG; break
 

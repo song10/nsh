@@ -11,49 +11,46 @@ type
   App* = object
     verbose*: bool
     quiet*: bool
-    db*: Database
+    cfgpath: string
     cfg*: Config
-    database*: string
-    #
-    release*: string
-    flags*: string
-    tc*: string
-    default_lib*: string
-    default_tests*: seq[string]
-    test_tc*: string
-    build_flags*: string
-    simulator*, compiler*: string
 
-proc initApp(): App =
-  let lib = "mculib"
-  App(verbose: false, quiet: false, database: "bs3.ini",
-    default_lib: lib,
-    tc: &"nds64le-elf-{lib}-v5d",
-    default_tests: @["binutils", "v5_toolmisc_test", "supertest", "plumhall",
-        "gcc", "g++", "csmith"],
-    build_flags: "--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes",
-    simulator: "gdb", # gdb, sid
-    compiler: "gcc", # gcc, clang, both
-  )
+let
+  d4Cfg = loadConfig(newStringStream("""
+[Default]
+lib="mculib"
+tc="nds32le-elf-mculib-v5d"
+[Release]
+branch=
+[Build]
+flags="--shallow-clone-whitelist=binutils --toolchain-dev-mode=yes"
+tc=
+[Test]
+tests="binutils,v5_toolmisc_test,supertest,plumhall,gcc,g++,csmith"
+cflags=
+ldflags="-fuse-ld=bfd"
+simulator="sid"
+compiler="gcc"
+"""))
 
-var the* = initApp()
-
-proc readIni*(fn: string, cfg: var Config): bool =
-  result = false
-  if fn.fileExists:
-    cfg = loadConfig(fn)
-    result = true
-
-proc readDatabase*(app: var App): bool =
-  result = false
-  var dbdir = getCurrentDir()
-  var dbpath = joinPath(dbdir, app.database)
+proc readCfg*(app: var App, cfgname: string): App {.discardable.} =
+  var path = absolutePath(cfgname)
+  var parent = parentDir(path)
   while true:
-    if readIni(dbpath, app.cfg):
-      result = true
-      break
-    dbdir = parentDir(dbdir)
-    dbpath = joinPath(dbdir, app.database)
+    if not path.fileExists:
+      if parent.isRootDir:
+        break
+      parent = parentDir(parent)
+      path = joinPath(parent, cfgname)
+      continue
+
+    app.cfg = loadConfig(path)
+    if app.cfg.getSectionValue("Default", "lib") == "":
+      app.cfg = d4Cfg
+    break
+
+  app
+
+var the* = App()
 
 # sugars
 template is_empty*(x: string): bool = isEmptyOrWhitespace(x)
@@ -232,4 +229,18 @@ proc cut_path*(code: string, db: var Database, fn: string): bool =
     for k in key: db.del k
     result = db.len < origin_size
     break # once
+
+when isMainModule:
+  echo d4_cfg["Release"]
+
+  let x = loadConfig(newStringStream("""
+[Default]
+lib=newlib
+[XXX]
+aa=bb
+"""))
+
+  var y = d4Cfg
+  y.merge(x)
+  echo y
 

@@ -1,5 +1,5 @@
 import std/[strformat, tables]
-import helper
+import global
 
 # fish
 #   alias xcd 'nsh xcd $argv 1>/tmp/xcd && . /tmp/xcd'

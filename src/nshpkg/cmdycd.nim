@@ -1,5 +1,5 @@
 import std/os, strformat
-import helper
+import global
 
 # fish
 #   alias ycd 'nsh ycd $argv 1>/tmp/ycd && . /tmp/ycd'

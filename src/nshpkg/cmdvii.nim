@@ -1,5 +1,5 @@
 import std/strutils, strformat, osproc
-import helper
+import global
 
 # shell
 #   alias vii 'nsh vii'
