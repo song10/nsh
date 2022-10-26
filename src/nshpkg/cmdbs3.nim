@@ -71,14 +71,16 @@ proc renderTestCommand(cmds, args): bool =
     let tests = jobs.join ","
     let simulator = the.cfg.getSectionValue("Test", "simulator")
     let compiler = the.cfg.getSectionValue("Test", "compiler")
-    let branch = the.cfg.getSectionValue("Test", "branch")
     var cflags = the.cfg.getSectionValue("Test", "cflags")
     var ldflags = the.cfg.getSectionValue("Test", "ldflags")
+    var branch = the.cfg.getSectionValue("Release", "branch")
     var tc = the.cfg.getSectionValue("Build", "tc")
     if cflags != "":
       cflags = &"--with-extra-cflags='{cflags}'"
     if ldflags != "":
       ldflags = &"--with-extra-ldflags='{ldflags}'"
+    if branch != "":
+      branch = &"--release-branch={branch}"
     if tc == "":
       tc = the.cfg.getSectionValue("Default", "tc")
     cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch}"
@@ -138,18 +140,44 @@ proc render_fail_command(cmds, args): bool =
   grep -B1 Fail {log} | grep Config"""
   true
 
+proc setupDefault(simulator, compiler: string): int =
+  result = ExitNG
+  while true:
+    # CLI
+    var
+      sim = simulator
+      com = compiler
+    # CFG if not CLI
+    if sim == "":
+      sim = the.cfg.getSectionValue("Test", "simulator")
+    if com == "":
+      com = the.cfg.getSectionValue("Test", "compiler")
+    # default if not CFG neither
+    if sim == "": sim = "gdb"
+    if com == "": com = "gcc"
+    # validate and update
+    if sim notin ["gdb", "sid", "qemu"]:
+      echo &"Bad simulate '{sim}'!"
+      break
+    if com notin ["gcc", "clang", "both"]:
+      echo &"Bad compiler '{com}'!"
+      break
+
+    the.cfg.setSectionKey("Test", "simulator", sim)
+    the.cfg.setSectionKey("Test", "compiler", com)
+
+    result = ExitOK
+    break # once
+
 proc bs3*(clean = "", build = "", test = "", state = "", watch = "",
-    fail = "", simulator = "sid", compiler = "gcc", run = false,
+    fail = "", simulator = "", compiler = "", run = false,
     verbose = false, quiet = false, cfg = "bs3.ini", paths: seq[string]): int =
 
   # update app (context)
   the.quiet = quiet
   the.verbose = verbose
   the.readCfg(cfg)
-  if compiler in ["gcc", "clang", "both"]:
-    the.cfg.setSectionKey("Test", "compiler", compiler)
-  if simulator in ["gdb", "sid", "qemu"]:
-    the.cfg.setSectionKey("Test", "simulator", simulator)
+  result = setupDefault(simulator, compiler)
 
   # body
   while result == ExitOK: # once
