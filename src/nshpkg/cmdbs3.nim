@@ -108,7 +108,7 @@ proc render_state_command(cmds, args): bool =
   let (_, name) = splitPath(logfile)
   let tmpfile = joinPath("/tmp", name) & ".grp"
   cmds[].add &"""
-  uptime;python -c 'print("-"*124)';grep -E '(Pass|Fail)' {logfile} > {tmpfile};GREP_COLOR="1;32" grep --color=always Pass {tmpfile}|tail|cut -c -256;python -c 'print("-"*124)';GREP_COLOR="1;31" grep --color=always Fail {tmpfile}|tail|cut -c -256"""
+  uptime;python -c 'print("-"*124)';grep -E '(Pass|Fail)' {logfile} > {tmpfile};GREP_COLORS="mt=1;32" grep --color=always Pass {tmpfile}|tail|cut -c -256;python -c 'print("-"*124)';GREP_COLORS="mt=1;31" grep --color=always Fail {tmpfile}|tail|cut -c -256"""
   true
 
 proc render_watch_command(cmds, args): bool =
