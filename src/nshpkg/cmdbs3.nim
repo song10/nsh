@@ -39,11 +39,12 @@ proc renderBuildCommand(cmds, args): bool =
 
   the.cfg.setSectionKey("Build", "tc", jobs.join ",")
   let flags = the.cfg.getSectionValue("Build", "flags")
+  let extra = the.cfg.getSectionValue("Extra", "cli")
   var branch = the.cfg.getSectionValue("Release", "branch")
   if branch != "":
     branch = &"--release-branch={branch}"
   for x in jobs:
-    cmds[].add &"./build_system_3.py build {x} {flags} {branch}"
+    cmds[].add &"./build_system_3.py build {x} {flags} {branch} {extra}"
   true
 
 proc renderTestCommand(cmds, args): bool =
@@ -69,6 +70,7 @@ proc renderTestCommand(cmds, args): bool =
       jobs.add args
   if jobs.len > 0:
     let tests = jobs.join ","
+    let extra = the.cfg.getSectionValue("Extra", "cli")
     let simulator = the.cfg.getSectionValue("Test", "simulator")
     let compiler = the.cfg.getSectionValue("Test", "compiler")
     var cflags = the.cfg.getSectionValue("Test", "cflags")
@@ -83,7 +85,7 @@ proc renderTestCommand(cmds, args): bool =
       branch = &"--release-branch={branch}"
     if tc == "":
       tc = the.cfg.getSectionValue("Default", "tc")
-    cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch}"
+    cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch} {extra}"
   true
 
 proc get_latest_bs3_log(path: string): string =
