@@ -122,18 +122,18 @@ proc read_yaml*(fn: string, db: var Database): bool =
   if result == false:
     qecho &"Read DB '{fn}' failed!"
 
-proc write_yaml*(fn: string, db: Database): bool =
+proc write_yaml*(filename: string, db: Database): bool =
   while true: # once
     # write db now
     try:
-      let s = newFileStream(fn, fmWrite)
+      let s = newFileStream(filename, fmWrite)
       dump(db, s)
       close(s)
       result = true
     except: break
     break # once
   if result == false:
-    qecho &"Write DB '{fn}' failed!"
+    qecho &"Write DB '{filename}' failed!"
 
 proc remove_database*(fn: string): bool {.discardable.} =
   vecho &"remove database '{fn}'!"

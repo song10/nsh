@@ -1,5 +1,5 @@
 import std/[strformat, tables]
-import global
+import global, database
 
 # fish
 #   alias xcd 'nsh xcd $argv 1>/tmp/xcd && . /tmp/xcd'
@@ -27,10 +27,13 @@ proc xcd*(add = "", cut = "", list = false, quiet = false, verbose = false,
   result = ExitOK
   while true: # once
     var
-      dbname = get_effect_name(database, "xcd.yaml")
+      dbname = get_database_path(database, "xcd.yaml")
       db: Database
     if not read_yaml(dbname, db): result = ExitNG; break
     # DB ready now
+    if verbose:
+      echo &"databse: {dbname}"
+      break
     if not add.is_empty: # add
       if add_key(db, add, paths) and write_yaml(dbname, db): discard
       else: result = ExitNG
