@@ -73,6 +73,7 @@ proc renderTestCommand(cmds, args): bool =
     let extra = the.cfg.getSectionValue("Extra", "cli")
     let simulator = the.cfg.getSectionValue("Test", "simulator")
     let compiler = the.cfg.getSectionValue("Test", "compiler")
+    let cliext = the.cfg.getSectionValue("Test", "cliext")
     var cflags = the.cfg.getSectionValue("Test", "cflags")
     var ldflags = the.cfg.getSectionValue("Test", "ldflags")
     var branch = the.cfg.getSectionValue("Release", "branch")
@@ -85,7 +86,7 @@ proc renderTestCommand(cmds, args): bool =
       branch = &"--release-branch={branch}"
     if tc == "":
       tc = the.cfg.getSectionValue("Default", "tc")
-    cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch} {extra}"
+    cmds[].add &"./build_system_3.py test {tests} {tc} --with-sim={simulator} --test-with-compiler={compiler} {cflags} {ldflags} {branch} {extra} {cliext}"
   true
 
 proc get_latest_bs3_log(path: string): string =
