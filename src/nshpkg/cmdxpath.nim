@@ -1,5 +1,4 @@
 import std/[os, sequtils, strformat, strutils, tables]
-import yaml/serialization
 import global
 
 # unit test stuff

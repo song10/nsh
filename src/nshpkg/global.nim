@@ -1,6 +1,8 @@
 import std/[os, sequtils, streams, strformat, strutils, tables]
 import std/[parsecfg]
-import yaml/serialization
+import yaml
+
+export yaml
 
 const
   ExitOK* = 0
@@ -108,7 +110,7 @@ proc read_yaml*(fn: string, db: var Database): bool =
     if not fn.is_existed:
       try:
         let s = newFileStream(fn, fmWrite)
-        dump(db, s)
+        Dumper().dump(db, s)
         close(s)
       except: break
     # read db now
@@ -127,7 +129,7 @@ proc write_yaml*(filename: string, db: Database): bool =
     # write db now
     try:
       let s = newFileStream(filename, fmWrite)
-      dump(db, s)
+      Dumper().dump(db, s)
       close(s)
       result = true
     except: break
@@ -182,7 +184,7 @@ proc reset_db*(fn: string): bool {.discardable.} =
   var db: Database
   try:
     let s = newFileStream(fn, fmWrite)
-    dump(db, s)
+    Dumper().dump(db, s)
     close(s)
   except:
     result = false
